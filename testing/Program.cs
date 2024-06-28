@@ -10,4 +10,4 @@ using var stream = new BinaryStream(bytes)
 
 BCSV bcsv = stream.ReadItem<BCSV>();
 
-Console.WriteLine(bcsv);
+Console.WriteLine(bcsv.ConvertToCsv(false));

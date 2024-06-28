@@ -13,13 +13,15 @@ public abstract class Value(Field field) : IRead, IWrite
         return Data.ToString();
     }
 
+    public virtual string ToString(bool signed) => ToString();
+
     public abstract void Read(BinaryStream stream);
 
     public abstract void Write(BinaryStream stream);
 
     public void ReadVal(BinaryStream stream, int row, Header header)
     {
-        stream.SeekTask(row * header.EntrySize + Field.DataOff, Read);
+        stream.SeekTask(row * header.EntrySize + Field.DataOff, SeekOrigin.Current, Read);
     }
 }
 
@@ -55,7 +57,7 @@ public class IntValue<T> : Value
         stream.WriteUnmanaged<T>(Data);
     }
 
-    public string ToString(bool signed)
+    public override string ToString(bool signed)
     {
         if (signed)
         {
@@ -74,6 +76,13 @@ public class StringOffValue(Field field, u32? value = null) : IntValue<u32>(fiel
     {
         var stringoff = header.StringOffset;
         Data = stream.ReadNTStringAt(stringoff + (long)Data, enc);
+    }
+
+    public override string ToString(bool signed)
+    {
+        if (Data is u32 n && signed)
+            return Convert.ToInt32(n).ToString();
+        return Data.ToString();
     }
 }
 

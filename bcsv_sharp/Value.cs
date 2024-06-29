@@ -6,7 +6,7 @@ public abstract class Value(Field field) : IRead, IWrite
 {
     public Field Field { get; init; } = field;
 
-    public abstract dynamic Data { get; protected set; }
+    public abstract dynamic Data { get; internal set; }
 
     public override string ToString()
     {
@@ -28,7 +28,7 @@ public abstract class Value(Field field) : IRead, IWrite
 public class IntValue<T> : Value 
     where T : unmanaged, INumber<T>, IBitwiseOperators<T, T, T>, IShiftOperators<T, int, T>
 {
-    public override dynamic Data { get; protected set; }
+    public override dynamic Data { get; internal set; }
 
     public IntValue(Field field, T? value = null) : base(field)
     {
@@ -88,7 +88,7 @@ public class StringOffValue(Field field, u32? value = null) : IntValue<u32>(fiel
 
 public class StringValue(Field field) : Value(field)
 {
-    public override dynamic Data { get; protected set; } = new byte[32];
+    public override dynamic Data { get; internal set; } = new byte[32];
 
     public override string ToString()
     {
@@ -111,7 +111,7 @@ public class StringValue(Field field) : Value(field)
 
 public class FloatValue(Field field, f32? value = null) : Value(field)
 {
-    public override dynamic Data { get; protected set; } = value ?? 0f;
+    public override dynamic Data { get; internal set; } = value ?? 0f;
 
     public override void Read(BinaryStream stream)
     {
@@ -126,7 +126,7 @@ public class FloatValue(Field field, f32? value = null) : Value(field)
 
 public class NullValue(Field field) : Value(field)
 {
-    public override dynamic Data { get; protected set; } = "NULL";
+    public override dynamic Data { get; internal set; } = "NULL";
 
     public override void Read(BinaryStream stream) { }
     public override void Write(BinaryStream stream) { }

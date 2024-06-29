@@ -11,3 +11,7 @@ using var stream = new BinaryStream(bytes)
 BCSV bcsv = stream.ReadItem<BCSV>();
 
 Console.WriteLine(bcsv.ConvertToCsv(false));
+
+byte[] data = bcsv.ToBytes(Endian.Big);
+
+Console.WriteLine(data.Length);

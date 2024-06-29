@@ -1,4 +1,6 @@
-﻿namespace bcsv_sharp;
+﻿using System.Security.Cryptography;
+
+namespace bcsv_sharp;
 
 public class BCSV : IRead
 {
@@ -67,5 +69,72 @@ public class BCSV : IRead
             }
         }
         return builder.ToString();
+    }
+
+    public Field[] Sorted_Fields()
+    {
+        return [.. Fields.OrderBy((x) => x.DataType.Order())];
+    }
+
+    public void Update_Data()
+    {
+        var sorted = Sorted_Fields();
+        u16 doff = 0;
+        foreach (var f in sorted)
+        {
+            var index = Fields.FindIndex((x) => x.Hash == f.Hash);
+            if (Header.EntryCount is 0)
+                Header.EntryCount = (uint)Values.Count;
+            var og = Fields[index];
+            var vals = Dictionary[og];
+            Dictionary.Remove(og);
+            og.DataOff = doff;
+            doff += og.DataType.Size();
+            Fields[index] = og;
+            Dictionary.Add(og, vals);
+        }
+        Header.EntrySize = doff;
+        Header.EntryDataOff = 16 + (12 * Header.FieldCount);
+    }
+
+    public void Write(BinaryStream stream)
+    {
+        Update_Data();
+        stream.WriteItem(Header);
+        foreach (var field in Fields)
+            stream.WriteItem(field);
+        StringTable table = new();
+        table.Update_Offs(Values);
+        var v = 0;
+        var dict = Dictionary;
+        var sorted = Sorted_Fields();
+        while (v != Values.Count)
+        {
+            if (v >= Values.Count)
+                break;
+            foreach (var field in sorted)
+            {
+                var val = dict[field][0];
+                stream.WriteItem(val);
+                dict[field].RemoveAt(0);
+                v++;
+            }
+        }
+        stream.Seek(Header.StringOffset, 0);
+        stream.WriteItem(table);
+        var padded = stream.Position + ((stream.Position + 31 & ~31) - stream.Position);
+        while (stream.Position != padded)
+            stream.WriteByte(0x40);
+    }
+
+    public byte[] ToBytes(Endian endian, Encoding? enc = null)
+    {
+        using var stream = new BinaryStream()
+        {
+            Endian = endian,
+            Encoding = enc ?? Encoding.UTF8
+        };
+        Write(stream);
+        return stream.ToArray();
     }
 }

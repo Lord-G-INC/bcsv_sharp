@@ -5,7 +5,7 @@ namespace bcsv_sharp;
 public class BCSV : IRead
 {
     public Header Header;
-    public List<Field> Fields = [];
+    public List<Field> Fields { get; init; } = [];
     List<Value> Values { get; init; } = [];
     Dictionary<Field, List<Value>> Dictionary { get; init; } = [];
 
@@ -76,7 +76,7 @@ public class BCSV : IRead
         return [.. Fields.OrderBy((x) => x.DataType.Order())];
     }
 
-    public void Update_Data()
+    protected void Update_Data()
     {
         var sorted = Sorted_Fields();
         u16 doff = 0;
@@ -136,5 +136,15 @@ public class BCSV : IRead
         };
         Write(stream);
         return stream.ToArray();
+    }
+
+    public Value this[int index] { get => Values[index]; set => Values[index] = value; }
+
+    public Value[] this[Field field] => [.. Dictionary[field]];
+
+    public BCSV AddField(Field field, List<Value>? values = null)
+    {
+        Dictionary[field] = values ?? [];
+        return this;
     }
 }

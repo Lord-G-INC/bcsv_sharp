@@ -1,17 +1,13 @@
 ﻿using bcsv_sharp;
 using binary_stream;
 
-var bytes = File.ReadAllBytes("HeapSizeExcept.bcsv");
+var data = File.ReadAllBytes("HeapSizeExcept.bcsv");
 
-using var stream = new BinaryStream(bytes)
+using BinaryStream stream = new(data)
 {
     Endian = Endian.Big
 };
 
-BCSV bcsv = stream.ReadItem<BCSV>();
+BCSV bcsv = new(stream);
 
 Console.WriteLine(bcsv.ConvertToCsv(false));
-
-byte[] data = bcsv.ToBytes(Endian.Big);
-
-Console.WriteLine(data.Length);

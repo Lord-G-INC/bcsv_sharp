@@ -1,6 +1,4 @@
-﻿using System.Security.Cryptography;
-
-namespace bcsv_sharp;
+﻿namespace bcsv_sharp;
 
 public class BCSV : IRead
 {
@@ -8,6 +6,29 @@ public class BCSV : IRead
     public List<Field> Fields { get; init; } = [];
     List<Value> Values { get; init; } = [];
     Dictionary<Field, List<Value>> Dictionary { get; init; } = [];
+
+    public BCSV() { }
+
+    public BCSV(ReadOnlySpan<byte> data, Endian endian, Encoding? enc = null)
+    {
+        using BinaryStream stream = new(data) { Endian = endian, Encoding = enc ?? Encoding.UTF8 };
+        Read(stream);
+    }
+
+    public BCSV(Stream stream, Endian endian, Encoding? enc = null)
+    {
+        using BinaryStream bs = new(stream) { Endian = endian, Encoding = enc ?? Encoding.UTF8 };
+        Read(bs);
+    }
+
+    public BCSV(BinaryStream stream, Endian? endian = null, Encoding? enc = null)
+    {
+        if (enc != null) 
+            stream.Encoding = enc;
+        if (endian != null)
+            stream.Endian = endian.Value;
+        Read(stream);
+    }
 
     public void Read(BinaryStream stream)
     {
@@ -147,4 +168,6 @@ public class BCSV : IRead
         Dictionary[field] = values ?? [];
         return this;
     }
+
+    public Value[] ValuesFromFT(FieldType type) => [.. Values.Where(x => x.Field.DataType == type)];
 }

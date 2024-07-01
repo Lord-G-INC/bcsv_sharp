@@ -62,9 +62,9 @@ public class IntValue<T> : Value
         if (signed)
         {
             if (Data is ushort sh)
-                return Convert.ToInt16(sh).ToString();
+                return ((short)sh).ToString();
             if (Data is byte by)
-                return Convert.ToSByte(by).ToString();
+                return ((sbyte)by).ToString();
         }
         return base.ToString();
     }

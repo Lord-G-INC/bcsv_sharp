@@ -1,6 +1,8 @@
-﻿namespace bcsv_sharp;
+﻿using binary_stream;
 
-public class BCSV : IRead
+namespace bcsv_sharp;
+
+public class BCSV : IRead, IWrite
 {
     public Header Header;
     public List<Field> Fields { get; init; } = [];
@@ -148,36 +150,24 @@ public class BCSV : IRead
             stream.WriteByte(0x40);
     }
 
-    public byte[] ToBytes(Endian endian, Encoding? enc = null)
-    {
-        using var stream = new BinaryStream()
-        {
-            Endian = endian,
-            Encoding = enc ?? Encoding.UTF8
-        };
-        Write(stream);
-        return stream.ToArray();
-    }
-
-    public Value this[int index] { get => Values[index]; set => Values[index] = value; }
-
-    public Value[] this[Field field] => [.. Dictionary[field]];
+    public byte[] ToBytes(Endian endian, Encoding? enc = null) => this.IntoBytes(endian, enc);
 
     public BCSV AddField(Field field, List<Value>? values = null)
     {
-        Dictionary[field] = values ?? [];
+        values ??= [];
+        Fields.Add(field);
+        Values.AddRange(values);
+        Dictionary[field] = values;
         return this;
     }
 
     public Value[] ValuesFromFT(FieldType type) => [.. Values.Where(x => x.Field.DataType == type)];
 
-    public Field? GetFieldByName(string query) {
-        Dictionary<uint, string> map = [];
-        foreach (Field field in Fields) {
-            if (field.Name(map) == query) {
+    public Field? GetFieldByHash(uint hash)
+    {
+        foreach (var field in Fields)
+            if (field.Hash == hash)
                 return field;
-            }
-        }
         return null;
     }
 }

@@ -4,8 +4,8 @@ public class BCSV : IRead
 {
     public Header Header;
     public List<Field> Fields { get; init; } = [];
-    List<Value> Values { get; init; } = [];
-    Dictionary<Field, List<Value>> Dictionary { get; init; } = [];
+    public List<Value> Values { get; init; } = [];
+    public Dictionary<Field, List<Value>> Dictionary { get; init; } = [];
 
     public BCSV() { }
 
@@ -170,4 +170,14 @@ public class BCSV : IRead
     }
 
     public Value[] ValuesFromFT(FieldType type) => [.. Values.Where(x => x.Field.DataType == type)];
+
+    public Field? GetFieldByName(string query) {
+        Dictionary<uint, string> map = [];
+        foreach (Field field in Fields) {
+            if (field.Name(map) == query) {
+                return field;
+            }
+        }
+        return null;
+    }
 }

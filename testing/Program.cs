@@ -1,5 +1,5 @@
 ﻿using bcsv_sharp;
-using binary_stream;
+using Binary_Stream;
 
 var data = File.ReadAllBytes("HeapSizeExcept.bcsv");
 

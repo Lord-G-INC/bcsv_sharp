@@ -1,6 +1,4 @@
-﻿using binary_stream;
-
-namespace bcsv_sharp;
+﻿namespace bcsv_sharp;
 
 public class BCSV : IRead, IWrite
 {
@@ -150,7 +148,7 @@ public class BCSV : IRead, IWrite
             stream.WriteByte(0x40);
     }
 
-    public byte[] ToBytes(Endian endian, Encoding? enc = null) => this.IntoBytes(endian, enc);
+    public byte[] ToBytes(Endian endian, Encoding? enc = null) => Util.ToBytes(this, endian, enc);
 
     public BCSV AddField(Field field, List<Value>? values = null)
     {

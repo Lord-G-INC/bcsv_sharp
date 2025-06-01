@@ -3,7 +3,7 @@
 public record struct Header : IRead, IWrite
 {
     public u32 EntryCount, FieldCount, EntryDataOff, EntrySize;
-    
+
     public readonly long StringOffset => EntryDataOff + EntryCount * EntrySize;
 
     public void Read(BinaryStream stream)
@@ -21,4 +21,6 @@ public record struct Header : IRead, IWrite
         stream.WriteUnmanaged(EntryDataOff);
         stream.WriteUnmanaged(EntrySize);
     }
+
+    
 }

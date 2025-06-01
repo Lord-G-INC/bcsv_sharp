@@ -1,6 +1,6 @@
 ﻿namespace bcsv_sharp;
 
-public class BCSV : IRead, IWrite
+public class BCSV : IRead, IWrite, ILoadable<BCSV>
 {
     public Header Header;
     public List<Field> Fields { get; init; } = [];
@@ -167,5 +167,9 @@ public class BCSV : IRead, IWrite
             if (field.Hash == hash)
                 return field;
         return null;
+    }
+
+    public static BCSV LoadFrom(BinaryStream stream, Endian? endian = null, Encoding? enc = null) {
+        return new(stream, endian, enc);
     }
 }

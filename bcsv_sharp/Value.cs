@@ -98,7 +98,7 @@ public class StringValue(Field field) : Value(field)
     public override void Read(BinaryStream stream)
     {
         byte[] data = (byte[])Data;
-        stream.Read(data);
+        stream.ReadExactly(data);
         Data = data;
     }
 

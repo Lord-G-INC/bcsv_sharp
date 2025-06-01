@@ -1,133 +1,177 @@
-﻿using System.Numerics;
+﻿using Dunet;
 
 namespace bcsv_sharp;
 
-public abstract class Value(Field field) : IRead, IWrite
+[Union]
+public partial record Value : IRead, IWrite
 {
-    public Field Field { get; init; } = field;
-
-    public abstract dynamic Data { get; internal set; }
-
-    public override string ToString()
+    partial record Long
     {
-        return Data.ToString();
-    }
-
-    public virtual string ToString(bool signed) => ToString();
-
-    public abstract void Read(BinaryStream stream);
-
-    public abstract void Write(BinaryStream stream);
-
-    public void ReadVal(BinaryStream stream, int row, Header header)
-    {
-        stream.SeekTask(row * header.EntrySize + Field.DataOff, SeekOrigin.Current, Read);
-    }
-}
-
-public class IntValue<T> : Value 
-    where T : unmanaged, INumber<T>, IBitwiseOperators<T, T, T>, IShiftOperators<T, int, T>
-{
-    public override dynamic Data { get; internal set; }
-
-    public IntValue(Field field, T? value = null) : base(field)
-    {
-        Data = value ?? T.Zero;
-        Recalc();
-    }
-
-    public void Recalc()
-    {
-        T data = (T)Data;
-        u32 m = Field.DataType.Mask();
-        T mask = Unsafe.As<u32, T>(ref m);
-        data &= mask;
-        data >>= Field.Shift;
-        Data = data;
-    }
-
-    public override void Read(BinaryStream stream)
-    {
-        Data = stream.ReadUnmanaged<T>();
-        Recalc();
-    }
-
-    public override void Write(BinaryStream stream)
-    {
-        stream.WriteUnmanaged<T>(Data);
-    }
-
-    public override string ToString(bool signed)
-    {
-        if (signed)
+        public int Value;
+        public override void Read(BinaryStream stream)
         {
-            if (Data is ushort sh)
-                return ((short)sh).ToString();
-            if (Data is byte by)
-                return ((sbyte)by).ToString();
+            stream.ReadUnmanaged(ref Value);
+            Recalc();
         }
-        return base.ToString();
-    }
-}
-
-public class StringOffValue(Field field, u32? value = null) : IntValue<u32>(field, value)
-{
-    public void ReadStringOff(BinaryStream stream, Header header, Encoding? enc = null)
+        public override void Write(BinaryStream stream)
+        {
+            CalcWrite();
+            stream.WriteUnmanaged(Value);
+        }
+        public override string ToString() => Value.ToString();
+        void Recalc()
+        {
+            int mask = (int)Field.Mask;
+            Value &= mask;
+            Value >>>= Field.Shift;
+        }
+        void CalcWrite()
+        {
+            Value <<= Field.Shift;
+            Value &= (int)Field.Mask;
+        }
+    };
+    partial record String
     {
-        var stringoff = header.StringOffset;
-        Data = stream.ReadNTStringAt(stringoff + (long)Data, enc);
+        public byte[] Value = new byte[32];
+        public override void Read(BinaryStream stream)
+        {
+            stream.ReadExactly(Value);
+        }
+        public override void Write(BinaryStream stream)
+        {
+            stream.Write(Value);
+        }
+        public override string ToString() => Encoding.UTF8.GetString(Value);
     }
-
-    public override string ToString(bool signed)
+    partial record Float
     {
-        if (Data is u32 n && signed)
-            return Convert.ToInt32(n).ToString();
-        return Data.ToString();
+        public f32 Value;
+        public override void Read(BinaryStream stream)
+        {
+            stream.ReadUnmanaged(ref Value);
+        }
+        public override void Write(BinaryStream stream)
+        {
+            stream.WriteUnmanaged(Value);
+        }
+        public override string ToString() => Value.ToString();
     }
-}
-
-public class StringValue(Field field) : Value(field)
-{
-    public override dynamic Data { get; internal set; } = new byte[32];
-
-    public override string ToString()
+    partial record ULong
     {
-        return Encoding.UTF8.GetString(Data);
+        public u32 Value;
+        public override void Read(BinaryStream stream)
+        {
+            stream.ReadUnmanaged(ref Value);
+            Recalc();
+        }
+        public override void Write(BinaryStream stream)
+        {
+            CalcWrite();
+            stream.WriteUnmanaged(Value);
+        }
+        public override string ToString() => Value.ToString();
+        void Recalc()
+        {
+            u32 mask = Field.Mask;
+            Value &= mask;
+            Value >>>= Field.Shift;
+        }
+        void CalcWrite()
+        {
+            Value <<= Field.Shift;
+            Value &= Field.Mask;
+        }
     }
-
-    public override void Read(BinaryStream stream)
+    partial record Short
     {
-        byte[] data = (byte[])Data;
-        stream.ReadExactly(data);
-        Data = data;
+        public u16 Value;
+        public override void Read(BinaryStream stream)
+        {
+            stream.ReadUnmanaged(ref Value);
+            Recalc();
+        }
+        public override void Write(BinaryStream stream)
+        {
+            CalcWrite();
+            stream.WriteUnmanaged(Value);
+        }
+        public override string ToString() => Value.ToString();
+        void Recalc()
+        {
+            u16 mask = (u16)Field.Mask;
+            Value &= mask;
+            Value >>>= Field.Shift;
+        }
+        void CalcWrite()
+        {
+            Value <<= Field.Shift;
+            Value &= (ushort)Field.Mask;
+        }
     }
-
-    public override void Write(BinaryStream stream)
+    partial record Char
     {
-        byte[] data = (byte[])Data;
-        stream.Write(data);
+        public u8 Value;
+        public override void Read(BinaryStream stream)
+        {
+            stream.ReadUnmanaged(ref Value);
+            Recalc();
+        }
+        public override void Write(BinaryStream stream)
+        {
+            CalcWrite();
+            stream.WriteUnmanaged(Value);
+        }
+        public override string ToString() => Value.ToString();
+        void Recalc()
+        {
+            u8 mask = (u8)Field.Mask;
+            Value &= mask;
+            Value >>>= Field.Shift;
+        }
+        void CalcWrite()
+        {
+            Value <<= Field.Shift;
+            Value &= (u8)Field.Mask;
+        }
     }
-}
-
-public class FloatValue(Field field, f32? value = null) : Value(field)
-{
-    public override dynamic Data { get; internal set; } = value ?? 0f;
-
-    public override void Read(BinaryStream stream)
+    partial record StringOff
     {
-        Data = stream.ReadUnmanaged<f32>();
+        public u32 Position;
+        public string Value = string.Empty;
+        public override void Read(BinaryStream stream)
+        {
+            stream.ReadUnmanaged(ref Position);
+        }
+        public override void Write(BinaryStream stream)
+        {
+            stream.WriteUnmanaged(Position);
+        }
+        public override string ToString() => Value;
+        public void ReadStringOff(BinaryStream stream, Header header, Encoding? enc = null)
+        {
+            Value = stream.ReadNTStringAt(header.StringOffset + Position, enc);
+        }
     }
-
-    public override void Write(BinaryStream stream)
+    partial record Null
     {
-        stream.WriteUnmanaged<f32>(Data);
+        public override void Read(BinaryStream stream)
+        {
+        }
+        public override void Write(BinaryStream stream)
+        {
+        }
     }
-}
-
-public class NullValue(Field field) : Value(field)
-{
-    public override dynamic Data { get; internal set; } = "NULL";
-
-    public override void Read(BinaryStream stream) { }
-    public override void Write(BinaryStream stream) { }
+    public abstract void Read(BinaryStream stream);
+    public abstract void Write(BinaryStream stream);
+    public Field Field { get; protected set; }
+    public static Value Create(Field field)
+    {
+        Value val = field.DataType.Match<Value>((_) => new Long(),
+            (_) => new String(), (_) => new Float(), (_) => new ULong(),
+            (_) => new Short(), (_) => new Char(), (_) => new StringOff(),
+            (_) => new Null());
+        val.Field = field;
+        return val;
+    }
 }

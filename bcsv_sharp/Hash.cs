@@ -8,7 +8,7 @@ public static class Hash
         u32 ret = 0;
         foreach (var b in Encoding.ASCII.GetBytes(str))
         {
-            ret *= 31u + b;
+            ret = ret * 31u + b;
         }
         return ret;
     }

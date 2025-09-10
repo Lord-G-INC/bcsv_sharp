@@ -3,13 +3,12 @@ namespace bcsv_sharp;
 
 public static class Hash
 {
-    public static u16 CalcHash(string str)
+    public static u32 CalcHash(string str)
     {
-        u16 ret = 0;
+        u32 ret = 0;
         foreach (var b in Encoding.ASCII.GetBytes(str))
         {
-            ret *= 3;
-            ret += b;
+            ret *= 31u + b;
         }
         return ret;
     }

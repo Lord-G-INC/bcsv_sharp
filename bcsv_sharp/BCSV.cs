@@ -3,121 +3,54 @@
 public class BCSV : IRead, IWrite, ILoadable<BCSV>
 {
     public Header Header;
-    public List<Field> Fields { get; init; } = [];
-    public List<Value> Values { get; init; } = [];
-    public Dictionary<Field, List<Value>> Dictionary { get; init; } = [];
-
-    public BCSV() { }
-
-    public BCSV(ReadOnlySpan<byte> data, Endian endian, Encoding? enc = null)
-    {
-        using BinaryStream stream = new(data) { Endian = endian, Encoding = enc ?? Encoding.UTF8 };
-        Read(stream);
-    }
-
-    public BCSV(Stream stream, Endian endian, Encoding? enc = null)
-    {
-        using BinaryStream bs = new(stream) { Endian = endian, Encoding = enc ?? Encoding.UTF8 };
-        Read(bs);
-    }
-
-    public BCSV(BinaryStream stream, Endian? endian = null, Encoding? enc = null)
-    {
-        if (enc != null) 
-            stream.Encoding = enc;
-        if (endian != null)
-            stream.Endian = endian.Value;
-        Read(stream);
-    }
-
+    public List<Field> Fields = [];
+    public Dictionary<Field, List<Value>> Values = [];
     public void Read(BinaryStream stream)
     {
         stream.ReadItem(ref Header);
         Fields.Capacity = (int)Header.FieldCount;
-        Values.Capacity = (int)(Header.EntryCount * Header.FieldCount);
-        Dictionary.EnsureCapacity(Fields.Capacity);
-        for (int i = 0; i < Header.FieldCount; i++)
+        Values.EnsureCapacity((int)Header.FieldCount);
+        for (int i = 0; i < Fields.Capacity; i++)
         {
-            Fields.Add(stream.ReadItem<Field>());
-            Dictionary.Add(Fields[i], new((int)Header.EntryCount));
+            var field = stream.ReadItem<Field>();
+            Fields.Add(field);
+            var values = new List<Value>((int)Header.EntryCount);
+            Values.Add(field, values);
         }
         stream.Seek(Header.EntryDataOff, 0);
-        int row = 0;
-        while (Values.Count != Values.Capacity)
+        for (int i = 0; i < Header.EntryCount; i++)
         {
-            foreach (var field in Fields)
+            foreach (var f in Fields.OrderBy(x => x.DataOff))
             {
-                Value val = field.DataType.DataType switch
-                {
-                    FieldType.Type.LONG => new IntValue<int>(field),
-                    FieldType.Type.STRING => new StringValue(field),
-                    FieldType.Type.FLOAT => new FloatValue(field),
-                    FieldType.Type.ULONG => new IntValue<uint>(field),
-                    FieldType.Type.SHORT => new IntValue<u16>(field),
-                    FieldType.Type.CHAR => new IntValue<u8>(field),
-                    FieldType.Type.STRINGOFF => new StringOffValue(field),
-                    _ => new NullValue(field)
-                };
-                val.ReadVal(stream, row, Header);
-                if (val is StringOffValue v)
-                    v.ReadStringOff(stream, Header);
-                Values.Add(val);
-                Dictionary[field].Add(val);
-            }
-            row++;
-        }
-    }
-
-    public string ConvertToCsv(bool signed, char delim = ',', Dictionary<u32, string>? hashes = null)
-    {
-        hashes ??= [];
-        StringBuilder builder = new();
-        for (int i = 0; i < Fields.Count; i++)
-        {
-            bool last = i == Fields.Count - 1;
-            var term = last switch { true => '\n', false => delim };
-            builder.Append($"{Fields[i].Name(hashes)}:{Fields[i].DataType.DataType}{term}");
-        }
-        var v = 0;
-        while (v < Values.Count)
-        {
-            for (int i = 0; i < Fields.Count; i++)
-            {
-                bool last = i == Fields.Count - 1;
-                var term = last switch { true => '\n', false => delim };
-                builder.Append(Values[v].ToString(signed)).Append(term);
-                v++;
+                Value val = Value.Create(f);
+                val.Read(stream);
+                val.MatchStringOff((x) => x.ReadStringOff(stream, Header), () => { });
+                Values[f].Add(val);
             }
         }
-        return builder.ToString();
     }
-
-    public Field[] Sorted_Fields()
-    {
-        return [.. Fields.OrderBy((x) => x.DataType.Order())];
-    }
-
+    public Field[] SortedFields() => [.. Fields.OrderBy(x => x.DataType.Order)];
     protected void Update_Data()
     {
-        var sorted = Sorted_Fields();
+        Header.FieldCount = (uint)Fields.Count;
+        var sorted = SortedFields();
         u16 doff = 0;
         foreach (var f in sorted)
         {
-            var index = Fields.FindIndex((x) => x.Hash == f.Hash);
-            if (Header.EntryCount is 0)
-                Header.EntryCount = (uint)Values.Count;
+            var index = Fields.FindIndex(x => x.Hash == f.Hash);
             var og = Fields[index];
-            var vals = Dictionary[og];
-            Dictionary.Remove(og);
+            var vals = Values[f];
+            if (Header.EntryCount != vals.Count)
+                Header.EntryCount = (uint)vals.Count;
+            Values.Remove(og);
             og.DataOff = doff;
-            doff += og.DataType.Size();
+            doff += og.DataType.Size;
             Fields[index] = og;
-            Dictionary.Add(og, vals);
+            Values.Add(og, vals);
         }
         Header.EntrySize = doff;
         Header.EntryDataOff = 16 + (12 * Header.FieldCount);
     }
-
     public void Write(BinaryStream stream)
     {
         Update_Data();
@@ -125,20 +58,15 @@ public class BCSV : IRead, IWrite, ILoadable<BCSV>
         foreach (var field in Fields)
             stream.WriteItem(field);
         StringTable table = new();
-        table.Update_Offs(Values);
-        var v = 0;
-        var dict = Dictionary;
-        var sorted = Sorted_Fields();
-        while (v != Values.Count)
+        foreach (var vals in Values.Values)
+            table.Update_Offs(vals);
+        var sorted = SortedFields();
+        for (int i = 0; i < Header.EntryCount; i++)
         {
-            if (v >= Values.Count)
-                break;
-            foreach (var field in sorted)
+            foreach (var f in sorted)
             {
-                var val = dict[field][0];
+                Value val = Values[f][i];
                 stream.WriteItem(val);
-                dict[field].RemoveAt(0);
-                v++;
             }
         }
         stream.Seek(Header.StringOffset, 0);
@@ -147,29 +75,32 @@ public class BCSV : IRead, IWrite, ILoadable<BCSV>
         while (stream.Position != padded)
             stream.WriteByte(0x40);
     }
-
-    public byte[] ToBytes(Endian endian, Encoding? enc = null) => Util.ToBytes(this, endian, enc);
-
-    public BCSV AddField(Field field, List<Value>? values = null)
+    public string ConvertToCSV(char delim = ',', Dictionary<u32, string>? hashes = null)
     {
-        values ??= [];
-        Fields.Add(field);
-        Values.AddRange(values);
-        Dictionary[field] = values;
-        return this;
+        hashes ??= [];
+        StringBuilder builder = new();
+        for (int i = 0; i < Fields.Count; i++)
+        {
+            bool last = i == Fields.Count - 1;
+            var term = last switch { true => '\n', false => delim };
+            builder.Append($"{Fields[i].Name(hashes)}:{(u8)Fields[i].DataType}{term}");
+        }
+        for (int i = 0; i < Header.EntryCount; i++)
+        {
+            for (int f = 0; f < Fields.Count; f++)
+            {
+                bool last = f == Fields.Count - 1;
+                var term = last switch { true => '\n', false => delim };
+                builder.Append(Values[Fields[f]][i].ToString()).Append(term);
+            }
+        }
+        return builder.ToString();
     }
 
-    public Value[] ValuesFromFT(FieldType type) => [.. Values.Where(x => x.Field.DataType == type)];
-
-    public Field? GetFieldByHash(uint hash)
+    public static BCSV LoadFrom(BinaryStream stream, Endian? endian = null, Encoding? enc = null)
     {
-        foreach (var field in Fields)
-            if (field.Hash == hash)
-                return field;
-        return null;
-    }
-
-    public static BCSV LoadFrom(BinaryStream stream, Endian? endian = null, Encoding? enc = null) {
-        return new(stream, endian, enc);
+        stream.Endian = endian ?? stream.Endian;
+        stream.Encoding = enc ?? stream.Encoding;
+        return stream.ReadItem<BCSV>();
     }
 }

@@ -14,4 +14,6 @@ var hashes = Hash.ReadHashes(new("hashlookup.txt"));
 
 var csv = bcsv.ConvertToCSV(hashes: hashes);
 
+data = bcsv.ToBytes(Endian.Big);
+
 Console.WriteLine(csv);

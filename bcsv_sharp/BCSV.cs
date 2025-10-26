@@ -72,7 +72,11 @@ public class BCSV : IRead, IWrite, ILoadable<BCSV>
         }
         stream.Seek(Header.StringOffset, 0);
         stream.WriteItem(table);
-        var padded = stream.Position + ((stream.Position + 31 & ~31) - stream.Position);
+        var padded = (stream.Position % 32) switch
+        {
+            0 => stream.Position,
+            var x => stream.Position + (32 - x)
+        };
         while (stream.Position != padded)
             stream.WriteByte(0x40);
     }

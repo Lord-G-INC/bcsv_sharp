@@ -1,7 +1,7 @@
 using bcsv_sharp;
 using Binary_Stream;
 
-var data = File.ReadAllBytes("MessageId.tbl");
+var data = File.ReadAllBytes("AreaObjInfo_2");
 
 using BinaryStream stream = new(data)
 {

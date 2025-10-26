@@ -17,11 +17,12 @@ public class BCSV : IRead, IWrite, ILoadable<BCSV>
             var values = new List<Value>((int)Header.EntryCount);
             Values.Add(field, values);
         }
-        stream.Seek(Header.EntryDataOff, 0);
         for (int i = 0; i < Header.EntryCount; i++)
         {
+            stream.Seek(Header.EntryDataOff + (Header.EntrySize * i), 0);
             foreach (var f in Fields.OrderBy(x => x.DataOff))
             {
+                using Seek<BinaryStream> seek = new(stream, f.DataOff, SeekOrigin.Current);
                 Value val = Value.Create(f);
                 val.Read(stream);
                 val.MatchStringOff((x) => x.ReadStringOff(stream, Header), () => { });

@@ -96,7 +96,7 @@ public partial record Value : IRead, IWrite
             CalcWrite();
             stream.WriteUnmanaged(Value);
         }
-        public override string ToString() => Value.ToString();
+        public override string ToString() => ((short)Value).ToString();
         void Recalc()
         {
             u16 mask = (u16)Field.Mask;
@@ -122,7 +122,7 @@ public partial record Value : IRead, IWrite
             CalcWrite();
             stream.WriteUnmanaged(Value);
         }
-        public override string ToString() => Value.ToString();
+        public override string ToString() => ((sbyte)Value).ToString();
         void Recalc()
         {
             u8 mask = (u8)Field.Mask;

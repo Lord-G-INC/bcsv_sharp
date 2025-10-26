@@ -108,4 +108,16 @@ public class BCSV : IRead, IWrite, ILoadable<BCSV>
         stream.Encoding = enc ?? stream.Encoding;
         return stream.ReadItem<BCSV>();
     }
+
+    public Field CreateField(string name, FieldType datatype)
+    {
+        Field field = new() { 
+            Hash = Hash.CalcHash(name), 
+            DataType = datatype,
+            Mask = datatype.Mask,
+        };
+        Fields.Add(field);
+        Values.Add(field, new((int)Header.EntryCount));
+        return field;
+    }
 }

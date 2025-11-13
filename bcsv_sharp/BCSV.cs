@@ -120,4 +120,24 @@ public class BCSV : IRead, IWrite, ILoadable<BCSV>
         Values.Add(field, new((int)Header.EntryCount));
         return field;
     }
+
+    public int TotalSize()
+    {
+        /// Header + (Field * FieldCount)
+        int total = 16 + (12 * Fields.Count);
+        // Total size of values (not stringtable)
+        total += (int)Header.EntryCount * Fields.Sum(x => x.DataType.Size);
+        // String table calculation
+        StringTable table = new();
+        for (int i = 0; i < Fields.Count; i++)
+            table.Update_Offs(Values[Fields[i]]);
+        total += table.TotalSize();
+        // Algin to 32
+        total = (total % 32) switch
+        {
+            0 => total,
+            var r => total + (32 - r)
+        };
+        return total;
+    }
 }

@@ -14,6 +14,7 @@ public class StringTable : IWrite
         }
         return this[name];
     }
+    public int TotalSize() => Table.Keys.Sum(x => x.Length + 1);
     public void Write(BinaryStream stream)
     {
         foreach (var str in Table.Keys)
